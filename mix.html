@@ -74,22 +74,41 @@
   }
 
   /* ── FLOATING TOOLBAR ── */
-  .toolbar {
+  .toolbar-wrap {
     position: fixed;
     bottom: 1.2rem;
-    left: 50%;
-    transform: translateX(-50%);
+    left: 0;
+    right: 0;
+    display: flex;
+    justify-content: center;
+    padding: 0 1rem;
+    z-index: 50;
+    pointer-events: none;
+  }
+
+  .toolbar {
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    background: rgba(13,13,26,0.88);
+    background: rgba(13,13,26,0.92);
     backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
     border: 1px solid var(--border);
     border-radius: 40px;
-    padding: 0.5rem 0.8rem;
-    z-index: 50;
+    padding: 0.5rem 1rem;
     box-shadow: 0 4px 40px rgba(0,0,0,0.6);
+    overflow-x: auto;
+    overflow-y: visible;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    max-width: 100%;
+    pointer-events: all;
+    /* fade edges */
+    -webkit-mask-image: linear-gradient(to right, transparent 0%, black 5%, black 95%, transparent 100%);
+    mask-image: linear-gradient(to right, transparent 0%, black 5%, black 95%, transparent 100%);
   }
+
+  .toolbar::-webkit-scrollbar { display: none; }
 
   .toolbar-sep {
     width: 1px;
@@ -174,7 +193,7 @@
   /* ── POPOVER PANELS ── */
   .popover {
     position: fixed;
-    bottom: 4.2rem;
+    bottom: 5rem;
     left: 50%;
     transform: translateX(-50%);
     background: rgba(13,13,26,0.95);
@@ -360,7 +379,7 @@
 </div>
 
 <!-- Floating toolbar -->
-<div class="toolbar">
+<div class="toolbar-wrap"><div class="toolbar">
   <button class="mode-btn active" data-mode="draw">🖱 Draw</button>
   <button class="mode-btn" data-mode="sliders">🎛 Sliders</button>
   <button class="mode-btn" data-mode="words">✍ Words</button>
@@ -384,7 +403,7 @@
 
   <button class="btn-icon" id="btn-mute" title="Mute / Unmute">🔊</button>
   <a class="btn-icon" href="https://maximumreality.xyz" target="_blank" title="Home">🏡</a>
-</div>
+</div></div>
 
 <script>
 const canvas = document.getElementById('c');

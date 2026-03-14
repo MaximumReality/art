@@ -887,6 +887,10 @@ muteBtn.addEventListener('click', () => {
   audio.muted = muted;
   muteBtn.textContent = muted ? '🔇' : '🔊';
 });
+
+  if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("sw.js");
+}
 </script>
 </body>
 </html>

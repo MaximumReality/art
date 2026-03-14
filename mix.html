@@ -1,0 +1,824 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VOID BLOOM — Generative Art Toy</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300&family=Space+Mono:wght@400;700&display=swap');
+
+  :root {
+    --bg: #08080f;
+    --bg2: #0d0d1a;
+    --ink: #f0ece0;
+    --ink-dim: #7a7465;
+    --accent: #4a9e8a;
+    --accent2: #c46b3a;
+    --accent3: #7b5ea7;
+    --glow: rgba(74, 158, 138, 0.15);
+    --panel: rgba(255,255,255,0.03);
+    --border: rgba(255,255,255,0.07);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'Space Mono', monospace;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow-x: hidden;
+  }
+
+  /* Grain overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='1'/%3E%3C/svg%3E");
+    opacity: 0.035;
+    pointer-events: none;
+    z-index: 100;
+  }
+
+  header {
+    padding: 2rem 2.5rem 1rem;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: baseline;
+    gap: 1.5rem;
+  }
+
+  header h1 {
+    font-family: 'Cormorant Garamond', serif;
+    font-weight: 300;
+    font-size: 2rem;
+    letter-spacing: 0.15em;
+    color: var(--ink);
+  }
+
+  header h1 span {
+    color: var(--accent);
+    font-style: italic;
+  }
+
+  header p {
+    font-size: 0.6rem;
+    color: var(--ink-dim);
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+  }
+
+  .main {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+  }
+
+  /* CANVAS AREA */
+  .canvas-wrap {
+    flex: 1;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg);
+    overflow: hidden;
+  }
+
+  canvas {
+    display: block;
+    cursor: crosshair;
+    touch-action: none;
+  }
+
+  .canvas-hint {
+    position: absolute;
+    bottom: 1.5rem;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 0.55rem;
+    letter-spacing: 0.2em;
+    color: var(--ink-dim);
+    text-transform: uppercase;
+    pointer-events: none;
+    transition: opacity 0.5s;
+  }
+
+  /* SIDEBAR */
+  .sidebar {
+    width: 260px;
+    background: var(--bg2);
+    border-left: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    padding: 1.5rem 1.2rem;
+    gap: 1.5rem;
+  }
+
+  .section-label {
+    font-size: 0.55rem;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+    margin-bottom: 0.75rem;
+  }
+
+  /* Mode tabs */
+  .modes {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.4rem;
+  }
+
+  .mode-btn {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    color: var(--ink-dim);
+    padding: 0.5rem 0.4rem;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.58rem;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: center;
+    line-height: 1.4;
+  }
+
+  .mode-btn:hover { border-color: var(--accent); color: var(--ink); }
+  .mode-btn.active {
+    background: rgba(74,158,138,0.12);
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  /* Sliders */
+  .slider-row {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    margin-bottom: 0.8rem;
+  }
+
+  .slider-header {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.58rem;
+    color: var(--ink-dim);
+  }
+
+  .slider-header span:last-child { color: var(--ink); }
+
+  input[type=range] {
+    -webkit-appearance: none;
+    width: 100%;
+    height: 2px;
+    background: var(--border);
+    outline: none;
+    cursor: pointer;
+  }
+
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 8px var(--accent);
+    cursor: pointer;
+  }
+
+  /* Word input */
+  .word-input-wrap {
+    display: flex;
+    gap: 0.4rem;
+  }
+
+  input[type=text] {
+    flex: 1;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    color: var(--ink);
+    padding: 0.5rem 0.6rem;
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1rem;
+    font-style: italic;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  input[type=text]:focus { border-color: var(--accent); }
+  input[type=text]::placeholder { color: var(--ink-dim); }
+
+  /* Buttons */
+  .btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--ink-dim);
+    padding: 0.5rem 0.8rem;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.6rem;
+    letter-spacing: 0.1em;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-transform: uppercase;
+  }
+
+  .btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  .btn-primary {
+    background: rgba(74,158,138,0.1);
+    border-color: var(--accent);
+    color: var(--accent);
+    width: 100%;
+    padding: 0.7rem;
+  }
+
+  .btn-primary:hover {
+    background: rgba(74,158,138,0.2);
+    box-shadow: 0 0 20px rgba(74,158,138,0.2);
+  }
+
+  .btn-row {
+    display: flex;
+    gap: 0.4rem;
+  }
+
+  .btn-row .btn { flex: 1; font-size: 0.55rem; }
+
+  /* Color palette */
+  .palette {
+    display: flex;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+  }
+
+  .swatch {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: all 0.2s;
+    position: relative;
+  }
+
+  .swatch:hover { transform: scale(1.15); }
+  .swatch.active { border-color: var(--ink); box-shadow: 0 0 10px rgba(240,236,224,0.3); }
+
+  /* Word list display */
+  .word-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+    min-height: 24px;
+  }
+
+  .tag {
+    font-family: 'Cormorant Garamond', serif;
+    font-style: italic;
+    font-size: 0.75rem;
+    color: var(--accent3);
+    border: 1px solid rgba(123,94,167,0.3);
+    padding: 0.1rem 0.4rem;
+    border-radius: 2px;
+  }
+
+  /* Divider */
+  hr { border: none; border-top: 1px solid var(--border); }
+
+  .section { display: flex; flex-direction: column; }
+
+  /* Mode-specific panel visibility */
+  .panel { display: none; }
+  .panel.visible { display: block; }
+
+  /* Animations */
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+  .sidebar > * { animation: fadeIn 0.3s ease both; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>VOID <span>BLOOM</span></h1>
+  <p>Generative Art Toy — Dark Matter Edition</p>
+</header>
+
+<div class="main">
+  <div class="canvas-wrap">
+    <canvas id="c"></canvas>
+    <div class="canvas-hint" id="hint">move your cursor to begin</div>
+  </div>
+
+  <aside class="sidebar">
+    <div class="section">
+      <div class="section-label">Mode</div>
+      <div class="modes">
+        <button class="mode-btn active" data-mode="draw">🖱 Draw</button>
+        <button class="mode-btn" data-mode="sliders">🎛 Sliders</button>
+        <button class="mode-btn" data-mode="words">✍ Words</button>
+        <button class="mode-btn" data-mode="random">🎲 Random</button>
+      </div>
+    </div>
+
+    <hr>
+
+    <!-- DRAW MODE -->
+    <div class="section panel visible" id="panel-draw">
+      <div class="section-label">Brush</div>
+      <div class="slider-row">
+        <div class="slider-header"><span>Size</span><span id="v-size">40</span></div>
+        <input type="range" id="s-size" min="5" max="120" value="40">
+      </div>
+      <div class="slider-row">
+        <div class="slider-header"><span>Tendrils</span><span id="v-tendrils">6</span></div>
+        <input type="range" id="s-tendrils" min="1" max="16" value="6">
+      </div>
+      <div class="slider-row">
+        <div class="slider-header"><span>Decay</span><span id="v-decay">0.92</span></div>
+        <input type="range" id="s-decay" min="80" max="99" value="92">
+      </div>
+      <div class="slider-row">
+        <div class="slider-header"><span>Twist</span><span id="v-twist">0.5</span></div>
+        <input type="range" id="s-twist" min="0" max="100" value="50">
+      </div>
+    </div>
+
+    <!-- SLIDERS MODE -->
+    <div class="section panel" id="panel-sliders">
+      <div class="section-label">Evolve Parameters</div>
+      <div class="slider-row">
+        <div class="slider-header"><span>Complexity</span><span id="v-complexity">5</span></div>
+        <input type="range" id="s-complexity" min="1" max="12" value="5">
+      </div>
+      <div class="slider-row">
+        <div class="slider-header"><span>Chaos</span><span id="v-chaos">30</span></div>
+        <input type="range" id="s-chaos" min="0" max="100" value="30">
+      </div>
+      <div class="slider-row">
+        <div class="slider-header"><span>Bloom</span><span id="v-bloom">50</span></div>
+        <input type="range" id="s-bloom" min="0" max="100" value="50">
+      </div>
+      <div class="slider-row">
+        <div class="slider-header"><span>Speed</span><span id="v-speed">3</span></div>
+        <input type="range" id="s-speed" min="1" max="10" value="3">
+      </div>
+      <button class="btn btn-primary" id="btn-evolve">▶ Evolve</button>
+    </div>
+
+    <!-- WORDS MODE -->
+    <div class="section panel" id="panel-words">
+      <div class="section-label">Words Shape the Void</div>
+      <div class="word-input-wrap">
+        <input type="text" id="word-input" placeholder="enter a word…" maxlength="30">
+        <button class="btn" id="btn-add-word">+</button>
+      </div>
+      <div class="word-tags" id="word-tags" style="margin-top:0.7rem"></div>
+      <button class="btn btn-primary" style="margin-top:0.8rem" id="btn-bloom-words">✦ Bloom</button>
+    </div>
+
+    <!-- RANDOM MODE -->
+    <div class="section panel" id="panel-random">
+      <div class="section-label">Instant Art</div>
+      <p style="font-size:0.6rem;color:var(--ink-dim);line-height:1.6;margin-bottom:1rem">Conjure a fully-formed piece in one breath.</p>
+      <button class="btn btn-primary" id="btn-conjure">✦ Conjure</button>
+      <div style="margin-top:0.6rem" class="btn-row">
+        <button class="btn" id="btn-conjure2">Wisp</button>
+        <button class="btn" id="btn-conjure3">Storm</button>
+        <button class="btn" id="btn-conjure4">Roots</button>
+      </div>
+    </div>
+
+    <hr>
+
+    <!-- PALETTE — always visible -->
+    <div class="section">
+      <div class="section-label">Hue</div>
+      <div class="palette" id="palette">
+        <div class="swatch active" data-hue="teal" style="background:radial-gradient(circle at 30% 30%, #4a9e8a, #1a4a40)"></div>
+        <div class="swatch" data-hue="amber" style="background:radial-gradient(circle at 30% 30%, #c46b3a, #5a2a10)"></div>
+        <div class="swatch" data-hue="violet" style="background:radial-gradient(circle at 30% 30%, #7b5ea7, #2a1845)"></div>
+        <div class="swatch" data-hue="rose" style="background:radial-gradient(circle at 30% 30%, #b05070, #4a1025)"></div>
+        <div class="swatch" data-hue="ice" style="background:radial-gradient(circle at 30% 30%, #6ab0c8, #1a3848)"></div>
+        <div class="swatch" data-hue="ghost" style="background:radial-gradient(circle at 30% 30%, #c8c0b0, #404030)"></div>
+      </div>
+    </div>
+
+    <hr>
+
+    <div class="btn-row">
+      <button class="btn" id="btn-clear">Clear</button>
+      <button class="btn" id="btn-save">Save PNG</button>
+    </div>
+  </aside>
+</div>
+
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const hint = document.getElementById('hint');
+
+let W, H;
+function resize() {
+  const wrap = canvas.parentElement;
+  W = wrap.clientWidth;
+  H = wrap.clientHeight;
+  canvas.width = W;
+  canvas.height = H;
+  ctx.fillStyle = '#08080f';
+  ctx.fillRect(0,0,W,H);
+}
+resize();
+window.addEventListener('resize', resize);
+
+// State
+let mode = 'draw';
+let hue = 'teal';
+let isDrawing = false;
+let evolveInterval = null;
+let words = [];
+let frameCount = 0;
+
+// Hue palettes
+const HUES = {
+  teal:   [[30,180,150], [20,140,120], [60,200,160], [10,100,90]],
+  amber:  [[200,100,50], [180,80,30],  [220,130,60], [150,60,20]],
+  violet: [[140,100,200],[110,70,180], [160,120,210],[80,50,150]],
+  rose:   [[190,80,120], [170,60,100], [210,100,140],[140,40,80]],
+  ice:    [[100,180,210],[80,150,190], [120,200,220],[60,120,170]],
+  ghost:  [[200,195,180],[180,175,160],[220,215,200],[150,145,130]],
+};
+
+function getColor(alpha=1, shift=0) {
+  const palette = HUES[hue];
+  const c = palette[(Math.floor(frameCount/30 + shift)) % palette.length];
+  const jitter = () => (Math.random()-0.5)*30;
+  return `rgba(${c[0]+jitter()},${c[1]+jitter()},${c[2]+jitter()},${alpha})`;
+}
+
+// ─── DRAW MODE ────────────────────────────────────────────────────
+let lastX = -1, lastY = -1;
+
+function drawTendrils(x, y, pressure=1) {
+  const size = +document.getElementById('s-size').value * pressure;
+  const tendrils = +document.getElementById('s-tendrils').value;
+  const decay = +document.getElementById('s-decay').value / 100;
+  const twist = +document.getElementById('s-twist').value / 100 * Math.PI;
+
+  for (let i = 0; i < tendrils; i++) {
+    const angle = (i / tendrils) * Math.PI * 2 + frameCount * 0.01 + twist;
+    let cx = x, cy = y;
+    let len = size * (0.5 + Math.random() * 0.5);
+    let a = angle + (Math.random()-0.5)*0.8;
+
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+
+    let steps = Math.floor(len / 3);
+    for (let s = 0; s < steps; s++) {
+      const t = s / steps;
+      const r = len * (1-t) * decay;
+      a += (Math.random()-0.5) * 0.4;
+      cx += Math.cos(a) * 3;
+      cy += Math.sin(a) * 3;
+      ctx.lineTo(cx, cy);
+    }
+
+    const alpha = 0.08 + Math.random()*0.15;
+    ctx.strokeStyle = getColor(alpha, i);
+    ctx.lineWidth = Math.max(0.3, (1-len/size*0.8) * 2);
+    ctx.lineCap = 'round';
+    ctx.stroke();
+  }
+
+  // Center glow
+  const g = ctx.createRadialGradient(x,y,0,x,y,size*0.3);
+  const p = HUES[hue][0];
+  g.addColorStop(0, `rgba(${p[0]},${p[1]},${p[2]},0.06)`);
+  g.addColorStop(1, `rgba(${p[0]},${p[1]},${p[2]},0)`);
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.arc(x,y,size*0.3,0,Math.PI*2);
+  ctx.fill();
+}
+
+canvas.addEventListener('mousedown', e => { isDrawing = true; hint.style.opacity = '0'; });
+canvas.addEventListener('mouseup', () => { isDrawing = false; lastX=-1; lastY=-1; });
+canvas.addEventListener('mouseleave', () => { isDrawing = false; lastX=-1; lastY=-1; });
+canvas.addEventListener('mousemove', e => {
+  if (mode !== 'draw' || !isDrawing) return;
+  const rect = canvas.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+  const speed = lastX < 0 ? 1 : Math.hypot(x-lastX, y-lastY);
+  const pressure = Math.min(1.5, 0.3 + speed * 0.04);
+  drawTendrils(x, y, pressure);
+  lastX = x; lastY = y;
+  frameCount++;
+});
+
+canvas.addEventListener('touchstart', e => { e.preventDefault(); isDrawing = true; hint.style.opacity='0'; });
+canvas.addEventListener('touchend', e => { e.preventDefault(); isDrawing = false; lastX=-1; lastY=-1; });
+canvas.addEventListener('touchmove', e => {
+  e.preventDefault();
+  if (mode !== 'draw' || !isDrawing) return;
+  const rect = canvas.getBoundingClientRect();
+  const t = e.touches[0];
+  const x = t.clientX - rect.left;
+  const y = t.clientY - rect.top;
+  drawTendrils(x, y, 1);
+  frameCount++;
+});
+
+// ─── SLIDERS / EVOLVE MODE ────────────────────────────────────────
+function drawOrganicBlob(cx, cy, r, complexity, chaos, bloom) {
+  const points = 6 + complexity * 2;
+  const palette = HUES[hue];
+
+  for (let layer = 0; layer < bloom/15 + 1; layer++) {
+    const lr = r * (0.3 + layer * 0.25);
+    ctx.beginPath();
+    for (let i = 0; i <= points * 2; i++) {
+      const t = i / (points * 2);
+      const angle = t * Math.PI * 2;
+      const noise = (Math.random()-0.5) * chaos * lr/100;
+      const nr = lr + noise;
+      const x = cx + Math.cos(angle) * nr;
+      const y = cy + Math.sin(angle) * nr;
+      i === 0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+    }
+    ctx.closePath();
+    const c = palette[layer % palette.length];
+    ctx.strokeStyle = `rgba(${c[0]},${c[1]},${c[2]},${0.04 + Math.random()*0.06})`;
+    ctx.lineWidth = 0.5 + Math.random();
+    ctx.stroke();
+
+    // Vein lines
+    for (let v = 0; v < complexity; v++) {
+      const a1 = Math.random()*Math.PI*2;
+      const a2 = a1 + (Math.random()-0.5)*Math.PI;
+      ctx.beginPath();
+      ctx.moveTo(cx + Math.cos(a1)*lr*0.2, cy + Math.sin(a1)*lr*0.2);
+      const mx = cx + Math.cos((a1+a2)/2)*lr*(0.5+Math.random()*0.3);
+      const my = cy + Math.sin((a1+a2)/2)*lr*(0.5+Math.random()*0.3);
+      const ex = cx + Math.cos(a2)*lr*(0.8+Math.random()*0.2);
+      const ey = cy + Math.sin(a2)*lr*(0.8+Math.random()*0.2);
+      ctx.quadraticCurveTo(mx,my,ex,ey);
+      ctx.strokeStyle = `rgba(${c[0]},${c[1]},${c[2]},0.07)`;
+      ctx.lineWidth = 0.3;
+      ctx.stroke();
+    }
+  }
+  frameCount++;
+}
+
+let evolveTimer = null;
+document.getElementById('btn-evolve').addEventListener('click', () => {
+  if (evolveTimer) { clearInterval(evolveTimer); evolveTimer = null; document.getElementById('btn-evolve').textContent = '▶ Evolve'; return; }
+  document.getElementById('btn-evolve').textContent = '■ Stop';
+  hint.style.opacity = '0';
+  function step() {
+    const complexity = +document.getElementById('s-complexity').value;
+    const chaos = +document.getElementById('s-chaos').value;
+    const bloom = +document.getElementById('s-bloom').value;
+    const cx = W/2 + (Math.random()-0.5)*W*0.5;
+    const cy = H/2 + (Math.random()-0.5)*H*0.4;
+    const r = 30 + Math.random() * bloom * 2;
+    drawOrganicBlob(cx, cy, r, complexity, chaos, bloom);
+  }
+  const speed = +document.getElementById('s-speed').value;
+  evolveTimer = setInterval(step, Math.max(30, 300/speed));
+});
+
+// ─── WORDS MODE ───────────────────────────────────────────────────
+document.getElementById('btn-add-word').addEventListener('click', addWord);
+document.getElementById('word-input').addEventListener('keydown', e => { if(e.key==='Enter') addWord(); });
+
+function addWord() {
+  const inp = document.getElementById('word-input');
+  const w = inp.value.trim();
+  if (!w || words.length >= 8) return;
+  words.push(w);
+  inp.value = '';
+  renderTags();
+}
+
+function renderTags() {
+  const cont = document.getElementById('word-tags');
+  cont.innerHTML = words.map((w,i) => `<span class="tag" data-i="${i}" style="cursor:pointer" title="remove">${w}</span>`).join('');
+  cont.querySelectorAll('.tag').forEach(t => t.addEventListener('click', () => {
+    words.splice(+t.dataset.i, 1); renderTags();
+  }));
+}
+
+function wordToSeed(w) {
+  return w.split('').reduce((a,c) => a + c.charCodeAt(0), 0);
+}
+
+document.getElementById('btn-bloom-words').addEventListener('click', () => {
+  if (!words.length) return;
+  hint.style.opacity = '0';
+  const palette = HUES[hue];
+
+  words.forEach((word, wi) => {
+    const seed = wordToSeed(word);
+    const rng = (n=1) => ((Math.sin(seed * (n+1) * 12.9898) * 43758.5453) % 1 + 1) % 1;
+
+    // Central point for this word
+    const cx = W * (0.2 + rng(1) * 0.6);
+    const cy = H * (0.2 + rng(2) * 0.6);
+    const len = word.length;
+    const branches = 3 + (seed % 7);
+    const r = 40 + len * 8;
+
+    // Draw organic structure seeded by the word
+    for (let b = 0; b < branches; b++) {
+      let x = cx, y = cy;
+      let angle = (b / branches) * Math.PI * 2 + rng(b+10) * 0.5;
+      const steps = 20 + len * 3;
+
+      ctx.beginPath();
+      ctx.moveTo(x,y);
+
+      for (let s = 0; s < steps; s++) {
+        const t = s / steps;
+        const charCode = word.charCodeAt(s % len) / 122;
+        angle += (charCode - 0.5) * 0.4 + (rng(s+b*100)-0.5)*0.3;
+        const step = (r / steps) * (1 - t*0.5);
+        x += Math.cos(angle) * step;
+        y += Math.sin(angle) * step;
+        ctx.lineTo(x, y);
+
+        // Leaf node
+        if (s % Math.max(3, Math.floor(steps/len)) === 0) {
+          const c = palette[(wi + b) % palette.length];
+          ctx.strokeStyle = `rgba(${c[0]},${c[1]},${c[2]},0.5)`;
+          ctx.lineWidth = 1.5 * (1-t);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.moveTo(x,y);
+
+          const nr = 2 + rng(s)*4;
+          const g = ctx.createRadialGradient(x,y,0,x,y,nr);
+          g.addColorStop(0, `rgba(${c[0]},${c[1]},${c[2]},0.4)`);
+          g.addColorStop(1, `rgba(${c[0]},${c[1]},${c[2]},0)`);
+          ctx.fillStyle = g;
+          ctx.beginPath();
+          ctx.arc(x,y,nr,0,Math.PI*2);
+          ctx.fill();
+          ctx.beginPath();
+          ctx.moveTo(x,y);
+        }
+      }
+
+      const c = palette[(wi+b)%palette.length];
+      ctx.strokeStyle = `rgba(${c[0]},${c[1]},${c[2]},0.15)`;
+      ctx.lineWidth = 0.5;
+      ctx.stroke();
+    }
+
+    // Word label
+    ctx.save();
+    ctx.font = `italic 300 ${11 + len}px 'Cormorant Garamond', serif`;
+    ctx.fillStyle = `rgba(240,236,224,0.18)`;
+    ctx.fillText(word, cx - len*3, cy - r*0.8);
+    ctx.restore();
+
+    frameCount++;
+  });
+});
+
+// ─── RANDOM MODE ──────────────────────────────────────────────────
+function conjureRandom(style='normal') {
+  hint.style.opacity = '0';
+  const palette = HUES[hue];
+
+  if (style === 'wisp') {
+    // Drifting wisp trails
+    for (let i = 0; i < 40; i++) {
+      let x = Math.random()*W, y = Math.random()*H;
+      let a = Math.random()*Math.PI*2;
+      ctx.beginPath(); ctx.moveTo(x,y);
+      for (let s=0; s<80; s++) {
+        a += (Math.random()-0.5)*0.4;
+        x += Math.cos(a)*4; y += Math.sin(a)*3;
+        ctx.lineTo(x,y);
+      }
+      const c = palette[i%palette.length];
+      ctx.strokeStyle = `rgba(${c[0]},${c[1]},${c[2]},0.04)`;
+      ctx.lineWidth = 0.5 + Math.random();
+      ctx.stroke();
+    }
+  } else if (style === 'storm') {
+    // Radiating storm from center
+    const cx = W/2, cy = H/2;
+    for (let i=0; i<200; i++) {
+      const a = Math.random()*Math.PI*2;
+      const r = 20 + Math.random()*Math.max(W,H)*0.6;
+      ctx.beginPath();
+      ctx.moveTo(cx,cy);
+      const ex = cx + Math.cos(a)*r + (Math.random()-0.5)*100;
+      const ey = cy + Math.sin(a)*r + (Math.random()-0.5)*100;
+      const mx = cx + Math.cos(a)*r*0.5 + (Math.random()-0.5)*80;
+      const my = cy + Math.sin(a)*r*0.5 + (Math.random()-0.5)*80;
+      ctx.quadraticCurveTo(mx,my,ex,ey);
+      const c = palette[i%palette.length];
+      ctx.strokeStyle = `rgba(${c[0]},${c[1]},${c[2]},${0.03+Math.random()*0.06})`;
+      ctx.lineWidth = Math.random()*2;
+      ctx.stroke();
+    }
+  } else if (style === 'roots') {
+    // Branching root system
+    function branch(x,y,a,len,depth) {
+      if (depth<1||len<2) return;
+      const ex = x+Math.cos(a)*len, ey = y+Math.sin(a)*len;
+      ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(ex,ey);
+      const c = palette[depth%palette.length];
+      ctx.strokeStyle = `rgba(${c[0]},${c[1]},${c[2]},${0.1+depth*0.05})`;
+      ctx.lineWidth = depth*0.5;
+      ctx.stroke();
+      branch(ex,ey, a+(Math.random()-0.5)*1.2, len*0.7, depth-1);
+      branch(ex,ey, a+(Math.random()-0.5)*1.2, len*0.65, depth-1);
+    }
+    for(let i=0;i<5;i++) {
+      branch(Math.random()*W, H*0.8+Math.random()*H*0.2, -Math.PI/2+(Math.random()-0.5)*0.5, 80+Math.random()*60, 8);
+    }
+  } else {
+    // Normal: scattered organic blooms
+    const n = 5 + Math.floor(Math.random()*8);
+    for (let i=0; i<n; i++) {
+      drawOrganicBlob(
+        W*0.1+Math.random()*W*0.8,
+        H*0.1+Math.random()*H*0.8,
+        20+Math.random()*120,
+        2+Math.floor(Math.random()*8),
+        20+Math.random()*60,
+        30+Math.random()*70
+      );
+    }
+  }
+  frameCount++;
+}
+
+document.getElementById('btn-conjure').addEventListener('click', () => conjureRandom('normal'));
+document.getElementById('btn-conjure2').addEventListener('click', () => conjureRandom('wisp'));
+document.getElementById('btn-conjure3').addEventListener('click', () => conjureRandom('storm'));
+document.getElementById('btn-conjure4').addEventListener('click', () => conjureRandom('roots'));
+
+// ─── MODE SWITCHING ───────────────────────────────────────────────
+document.querySelectorAll('.mode-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    if (evolveTimer) { clearInterval(evolveTimer); evolveTimer=null; document.getElementById('btn-evolve').textContent='▶ Evolve'; }
+    document.querySelectorAll('.mode-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    mode = btn.dataset.mode;
+    document.querySelectorAll('.panel').forEach(p=>p.classList.remove('visible'));
+    document.getElementById('panel-'+mode).classList.add('visible');
+
+    const hints = { draw:'click & drag to paint', sliders:'adjust sliders, then evolve', words:'type words, then bloom', random:'hit a button to conjure' };
+    hint.style.opacity = '1';
+    hint.textContent = hints[mode];
+  });
+});
+
+// ─── PALETTE ──────────────────────────────────────────────────────
+document.querySelectorAll('.swatch').forEach(s => {
+  s.addEventListener('click', () => {
+    document.querySelectorAll('.swatch').forEach(x=>x.classList.remove('active'));
+    s.classList.add('active');
+    hue = s.dataset.hue;
+  });
+});
+
+// ─── SLIDER LABELS ────────────────────────────────────────────────
+[['s-size','v-size',1],['s-tendrils','v-tendrils',1],['s-decay','v-decay',0.01],
+ ['s-twist','v-twist',0.01],['s-complexity','v-complexity',1],['s-chaos','v-chaos',1],
+ ['s-bloom','v-bloom',1],['s-speed','v-speed',1]].forEach(([sid,vid,scale]) => {
+  const el = document.getElementById(sid);
+  if (!el) return;
+  const update = () => document.getElementById(vid).textContent = (el.value*scale).toFixed(scale<1?2:0);
+  el.addEventListener('input', update);
+  update();
+});
+
+// ─── CLEAR / SAVE ─────────────────────────────────────────────────
+document.getElementById('btn-clear').addEventListener('click', () => {
+  ctx.fillStyle = '#08080f';
+  ctx.fillRect(0,0,W,H);
+  hint.style.opacity='1';
+  if (evolveTimer) { clearInterval(evolveTimer); evolveTimer=null; document.getElementById('btn-evolve').textContent='▶ Evolve'; }
+});
+
+document.getElementById('btn-save').addEventListener('click', () => {
+  const a = document.createElement('a');
+  a.download = 'void-bloom.png';
+  a.href = canvas.toDataURL();
+  a.click();
+});
+</script>
+</body>
+</html>

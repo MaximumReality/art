@@ -122,7 +122,7 @@
     -webkit-backdrop-filter: blur(12px);
     border: 1px solid var(--border);
     border-radius: 40px;
-    padding: 0.5rem 1rem;
+    padding: 0.5rem 1.2rem;
     box-shadow: 0 4px 40px rgba(0,0,0,0.6);
     overflow-x: auto;
     overflow-y: visible;
@@ -130,9 +130,8 @@
     scrollbar-width: none;
     max-width: 100%;
     pointer-events: all;
-    /* fade edges */
-    -webkit-mask-image: linear-gradient(to right, transparent 0%, black 5%, black 95%, transparent 100%);
-    mask-image: linear-gradient(to right, transparent 0%, black 5%, black 95%, transparent 100%);
+    -webkit-mask-image: linear-gradient(to right, transparent 0%, black 6%, black 94%, transparent 100%);
+    mask-image: linear-gradient(to right, transparent 0%, black 6%, black 94%, transparent 100%);
   }
 
   .toolbar::-webkit-scrollbar { display: none; }
@@ -271,7 +270,7 @@
   }
   input[type=range]::-webkit-slider-thumb {
     -webkit-appearance: none;
-    width: 10px; height: 10px;
+    width: 24px; height: 24px;
     border-radius: 50%;
     background: var(--accent);
     box-shadow: 0 0 6px var(--accent);
@@ -329,7 +328,6 @@
 
   hr { border: none; border-top: 1px solid var(--border); margin: 0.8rem 0; }
 
-
 </style>
 </head>
 <body>
@@ -341,7 +339,7 @@
 <!-- Fullscreen canvas -->
 <div class="canvas-wrap">
   <canvas id="c"></canvas>
-  <div class="canvas-hint" id="hint">click &amp; drag to paint</div>
+  <div class="canvas-hint" id="hint">drag to paint</div>
 </div>
 
 <!-- Popovers -->
@@ -523,7 +521,13 @@ function drawTendrils(x, y, pressure=1) {
   ctx.fill();
 }
 
-canvas.addEventListener('mousedown', e => { isDrawing = true; hint.style.opacity = '0'; });
+// Mouse events
+canvas.addEventListener('mousedown', e => {
+  isDrawing = true;
+  hint.style.opacity = '0';
+  const rect = canvas.getBoundingClientRect();
+  drawTendrils(e.clientX - rect.left, e.clientY - rect.top, 1);
+});
 canvas.addEventListener('mouseup', () => { isDrawing = false; lastX=-1; lastY=-1; });
 canvas.addEventListener('mouseleave', () => { isDrawing = false; lastX=-1; lastY=-1; });
 canvas.addEventListener('mousemove', e => {
@@ -538,8 +542,30 @@ canvas.addEventListener('mousemove', e => {
   frameCount++;
 });
 
-canvas.addEventListener('touchstart', e => { e.preventDefault(); isDrawing = true; hint.style.opacity='0'; });
-canvas.addEventListener('touchend', e => { e.preventDefault(); isDrawing = false; lastX=-1; lastY=-1; });
+// Touch events — only draw on MOVE, never on start (prevents accidental marks)
+canvas.addEventListener('touchstart', e => {
+  e.preventDefault();
+  hint.style.opacity = '0';
+  // Close popover on canvas touch, then let next drag draw
+  if (activePopover && activePopover.classList.contains('open')) {
+    closeAllPopovers();
+    activePopover = null;
+    return; // don't start drawing yet
+  }
+  isDrawing = true;
+  // Record starting position but don't draw yet
+  const rect = canvas.getBoundingClientRect();
+  const t = e.touches[0];
+  lastX = t.clientX - rect.left;
+  lastY = t.clientY - rect.top;
+}, { passive: false });
+
+canvas.addEventListener('touchend', e => {
+  e.preventDefault();
+  isDrawing = false;
+  lastX = -1; lastY = -1;
+}, { passive: false });
+
 canvas.addEventListener('touchmove', e => {
   e.preventDefault();
   if (mode !== 'draw' || !isDrawing) return;
@@ -548,8 +574,9 @@ canvas.addEventListener('touchmove', e => {
   const x = t.clientX - rect.left;
   const y = t.clientY - rect.top;
   drawTendrils(x, y, 1);
+  lastX = x; lastY = y;
   frameCount++;
-});
+}, { passive: false });
 
 // ─── SLIDERS / EVOLVE MODE ────────────────────────────────────────
 function drawOrganicBlob(cx, cy, r, complexity, chaos, bloom) {
@@ -645,14 +672,12 @@ document.getElementById('btn-bloom-words').addEventListener('click', () => {
     const seed = wordToSeed(word);
     const rng = (n=1) => ((Math.sin(seed * (n+1) * 12.9898) * 43758.5453) % 1 + 1) % 1;
 
-    // Central point for this word
     const cx = W * (0.2 + rng(1) * 0.6);
     const cy = H * (0.2 + rng(2) * 0.6);
     const len = word.length;
     const branches = 3 + (seed % 7);
     const r = 40 + len * 8;
 
-    // Draw organic structure seeded by the word
     for (let b = 0; b < branches; b++) {
       let x = cx, y = cy;
       let angle = (b / branches) * Math.PI * 2 + rng(b+10) * 0.5;
@@ -670,7 +695,6 @@ document.getElementById('btn-bloom-words').addEventListener('click', () => {
         y += Math.sin(angle) * step;
         ctx.lineTo(x, y);
 
-        // Leaf node
         if (s % Math.max(3, Math.floor(steps/len)) === 0) {
           const c = palette[(wi + b) % palette.length];
           ctx.strokeStyle = `rgba(${c[0]},${c[1]},${c[2]},0.5)`;
@@ -698,7 +722,6 @@ document.getElementById('btn-bloom-words').addEventListener('click', () => {
       ctx.stroke();
     }
 
-    // Word label
     ctx.save();
     ctx.font = `italic 300 ${11 + len}px 'Cormorant Garamond', serif`;
     ctx.fillStyle = `rgba(240,236,224,0.18)`;
@@ -715,7 +738,6 @@ function conjureRandom(style='normal') {
   const palette = HUES[hue];
 
   if (style === 'wisp') {
-    // Drifting wisp trails
     for (let i = 0; i < 40; i++) {
       let x = Math.random()*W, y = Math.random()*H;
       let a = Math.random()*Math.PI*2;
@@ -731,7 +753,6 @@ function conjureRandom(style='normal') {
       ctx.stroke();
     }
   } else if (style === 'storm') {
-    // Radiating storm from center
     const cx = W/2, cy = H/2;
     for (let i=0; i<200; i++) {
       const a = Math.random()*Math.PI*2;
@@ -749,7 +770,6 @@ function conjureRandom(style='normal') {
       ctx.stroke();
     }
   } else if (style === 'roots') {
-    // Branching root system
     function branch(x,y,a,len,depth) {
       if (depth<1||len<2) return;
       const ex = x+Math.cos(a)*len, ey = y+Math.sin(a)*len;
@@ -765,7 +785,6 @@ function conjureRandom(style='normal') {
       branch(Math.random()*W, H*0.8+Math.random()*H*0.2, -Math.PI/2+(Math.random()-0.5)*0.5, 80+Math.random()*60, 8);
     }
   } else {
-    // Normal: scattered organic blooms
     const n = 5 + Math.floor(Math.random()*8);
     for (let i=0; i<n; i++) {
       drawOrganicBlob(
@@ -805,7 +824,6 @@ document.querySelectorAll('.mode-btn').forEach(btn => {
     }
 
     if (mode === newMode && popover && popover.classList.contains('open')) {
-      // Toggle off
       closeAllPopovers();
       activePopover = null;
     } else {
@@ -814,7 +832,7 @@ document.querySelectorAll('.mode-btn').forEach(btn => {
       mode = newMode;
       closeAllPopovers();
       if (popover) { popover.classList.add('open'); activePopover = popover; }
-      const hints = { draw:'click & drag to paint', sliders:'adjust sliders, then evolve', words:'type words, then bloom', random:'hit a button to conjure' };
+      const hints = { draw:'drag to paint', sliders:'adjust sliders, then evolve', words:'type words, then bloom', random:'hit a button to conjure' };
       hint.style.opacity = '1';
       hint.textContent = hints[mode];
     }
@@ -823,13 +841,6 @@ document.querySelectorAll('.mode-btn').forEach(btn => {
 
 // Open draw panel by default
 document.getElementById('popover-draw').classList.add('open');
-
-// Close popover when tapping canvas — but only if popover is open (so drawing still works)
-document.getElementById('c').addEventListener('touchstart', e => {
-  if (activePopover && activePopover.classList.contains('open')) {
-    closeAllPopovers(); activePopover = null;
-  }
-}, { passive: true });
 
 // ─── PALETTE ──────────────────────────────────────────────────────
 document.querySelectorAll('.swatch').forEach(s => {
@@ -865,12 +876,12 @@ document.getElementById('btn-save').addEventListener('click', () => {
   a.href = canvas.toDataURL();
   a.click();
 });
+
 // ─── AUDIO ────────────────────────────────────────────────────────
 const audio = document.getElementById('bg-audio');
 const muteBtn = document.getElementById('btn-mute');
 let muted = false;
 
-// Autoplay on first interaction
 let audioStarted = false;
 function startAudio() {
   if (!audioStarted) {
@@ -888,7 +899,7 @@ muteBtn.addEventListener('click', () => {
   muteBtn.textContent = muted ? '🔇' : '🔊';
 });
 
-  if ("serviceWorker" in navigator) {
+if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("sw.js");
 }
 </script>

@@ -193,23 +193,24 @@
   /* ── POPOVER PANELS ── */
   .popover {
     position: fixed;
-    bottom: 5rem;
+    top: 1rem;
     left: 50%;
     transform: translateX(-50%);
     background: rgba(13,13,26,0.95);
     backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
     border: 1px solid var(--border);
     border-radius: 12px;
     padding: 1.2rem 1.4rem;
     z-index: 49;
     min-width: 280px;
-    max-width: 360px;
+    max-width: calc(100vw - 2rem);
     display: none;
     box-shadow: 0 8px 40px rgba(0,0,0,0.7);
     animation: popIn 0.15s ease;
   }
   .popover.open { display: block; }
-  @keyframes popIn { from { opacity:0; transform: translateX(-50%) translateY(6px); } to { opacity:1; transform: translateX(-50%) translateY(0); } }
+  @keyframes popIn { from { opacity:0; transform: translateX(-50%) translateY(-6px); } to { opacity:1; transform: translateX(-50%) translateY(0); } }
 
   .section-label {
     font-size: 0.52rem;
@@ -796,8 +797,12 @@ document.querySelectorAll('.mode-btn').forEach(btn => {
 // Open draw panel by default
 document.getElementById('popover-draw').classList.add('open');
 
-// Close popovers on canvas click
-document.getElementById('c').addEventListener('mousedown', () => { closeAllPopovers(); activePopover = null; });
+// Close popover when tapping canvas — but only if popover is open (so drawing still works)
+document.getElementById('c').addEventListener('touchstart', e => {
+  if (activePopover && activePopover.classList.contains('open')) {
+    closeAllPopovers(); activePopover = null;
+  }
+}, { passive: true });
 
 // ─── PALETTE ──────────────────────────────────────────────────────
 document.querySelectorAll('.swatch').forEach(s => {
